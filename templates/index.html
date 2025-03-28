@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Dependencies Graph</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@300;400;500&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Roboto', sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0 0 12px 12px;
+        }
+        
+        header h1 {
+            font-weight: 500;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        
+        #network {
+            width: 100%;
+            height: 70vh;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .project-info {
+            position: absolute;
+            right: -320px;
+            top: 0;
+            background: white;
+            padding: 20px;
+            border-radius: 12px 0 0 12px;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            height: 100%;
+            z-index: 1001;
+            transition: transform 0.4s ease-in-out;
+            overflow-y: auto;
+        }
+        
+        .project-info.active {
+            transform: translateX(-320px);
+        }
+        
+        .project-info h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            font-size: 1.3rem;
+        }
+        
+        .project-info .info-group {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .project-info .info-group:last-child {
+            border-bottom: none;
+        }
+        
+        .project-info .info-label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .project-info .info-value {
+            color: #3498db;
+            font-weight: 400;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+            line-height: 1.6;
+        }
+        
+        .project-info .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+        
+        .project-info .close-btn:hover {
+            color: #e74c3c;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border-radius: 12px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .upload-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+        }
+        
+        .file-input-label {
+            padding: 12px 20px;
+            background-color: #f1f1f1;
+            color: #333;
+            border-radius: 24px;
+            display: inline-block;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .file-input-label:hover {
+            background-color: #e1e1e1;
+            transform: translateY(-2px);
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .file-name {
+            margin-left: 10px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        .upload-button {
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            align-self: flex-start;
+        }
+        
+        .upload-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .upload-info {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .legend {
+            position: absolute;
+            left: 30px;
+            top: 30px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .project-color {
+            background-color: #3498db;
+        }
+        
+        .resource-color {
+            background-color: #e74c3c;
+        }
+        
+        .control-panel {
+            position: absolute;
+            right: 30px;
+            top: 30px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .control-panel h4 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .control-item {
+            margin-bottom: 10px;
+        }
+        
+        .control-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        
+        .control-item input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .control-button {
+            padding: 8px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .control-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .node-link {
+            color: #3498db;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            display: inline-block;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            white-space: normal;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        .node-link:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Project Dependencies Network</h1>
+    </header>
+    
+    <div class="container">
+        <!-- Upload section -->
+        <section class="upload-section">
+            <h2>Upload Project Data</h2>
+            <form class="upload-form" method="POST" enctype="multipart/form-data">
+                <div class="file-input-container">
+                    <label class="file-input-label">
+                        Choose CSV File
+                        <input type="file" name="file" accept=".csv" class="file-input" id="file-input">
+                    </label>
+                    <span class="file-name" id="file-name">No file chosen</span>
+                </div>
+                <button type="submit" class="upload-button">Process Data</button>
+                <p class="upload-info">CSV should include columns: Project Name, Start Date, Deadline, Dependencies, Resources</p>
+            </form>
+        </section>
+
+        <!-- Network visualization -->
+        <div id="network">
+            <div class="control-panel">
+                <h4>Layout Controls</h4>
+                <div class="control-item">
+                    <label for="nodeDistance">Node Distance</label>
+                    <input type="range" id="nodeDistance" min="50" max="500" value="250" step="10">
+                </div>
+                <div class="control-item">
+                    <label for="springLength">Spring Length</label>
+                    <input type="range" id="springLength" min="50" max="500" value="300" step="10">
+                </div>
+                <div class="control-item">
+                    <label for="gravitationalConstant">Repulsion Strength</label>
+                    <input type="range" id="gravitationalConstant" min="50" max="500" value="200" step="10">
+                </div>
+                <button id="stabilizeButton" class="control-button">Stabilize</button>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color project-color"></div>
+                    <span>Project</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color resource-color"></div>
+                    <span>Other Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/9b59b6/computer.png" width="20" height="20">
+                    </div>
+                    <span>Tech Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/27ae60/user.png" width="20" height="20">
+                    </div>
+                    <span>Human Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/f39c12/building.png" width="20" height="20">
+                    </div>
+                    <span>Facility Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/1abc9c/source-code.png" width="20" height="20">
+                    </div>
+                    <span>Software Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/f1c40f/us-dollar.png" width="20" height="20">
+                    </div>
+                    <span>Financial Resource</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon">
+                        <img src="https://img.icons8.com/ios-filled/50/7f8c8d/clock.png" width="20" height="20">
+                    </div>
+                    <span>Time Resource</span>
+                </div>
+            </div>
+            
+            <!-- Project details panel -->
+            <div id="project-info" class="project-info">
+                <button class="close-btn" id="close-info">×</button>
+                <h3 id="selected-project">Project Details</h3>
+                
+                <div class="info-group">
+                    <span class="info-label">Description</span>
+                    <div class="info-value" id="description"></div>
+                </div>
+                
+                <div class="info-group">
+                    <span class="info-label">Start Date</span>
+                    <div class="info-value" id="start-date"></div>
+                </div>
+                
+                <div class="info-group">
+                    <span class="info-label">Deadline</span>
+                    <div class="info-value" id="deadline"></div>
+                </div>
+                
+                <div class="info-group">
+                    <span class="info-label">Dependencies</span>
+                    <div class="info-value" id="dependencies"></div>
+                </div>
+                
+                <div class="info-group">
+                    <span class="info-label">Resources</span>
+                    <div class="info-value" id="resources"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>Project Dependencies Visualization Tool</p>
+    </footer>
+
+    <script>
+        // File input handling
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
+            document.getElementById('file-name').textContent = fileName;
+        });
+
+        // Get the data passed from Flask
+        const projectsData = JSON.parse('{{ projects | tojson | safe }}');
+        const resourcesData = JSON.parse('{{ resources | tojson | safe }}');
+       
+        // Prepare nodes and edges for vis.js
+        const nodes = [];
+        const edges = [];
+        
+        // Store counts of connections for each node
+        const connectionCounts = {};
+        
+        // Initialize connection counts for projects
+        projectsData.forEach(project => {
+            connectionCounts[project.name] = 0;
+        });
+        
+        // Initialize connection counts for resources
+        resourcesData.forEach(resource => {
+            connectionCounts[resource] = 0;
+        });
+        
+        // Count dependencies and resources for each project
+        projectsData.forEach(project => {
+            // Count outgoing dependencies
+            connectionCounts[project.name] += project.dependencies.length;
+            
+            // Count resources used
+            connectionCounts[project.name] += project.resources.length;
+            
+            // Increment count for each dependency
+            project.dependencies.forEach(dep => {
+                if (connectionCounts[dep] !== undefined) {
+                    connectionCounts[dep]++;
+                }
+            });
+            
+            // Increment count for each resource
+            project.resources.forEach(resource => {
+                if (connectionCounts[resource] !== undefined) {
+                    connectionCounts[resource]++;
+                }
+            });
+        });
+        
+        // Calculate size range
+        const minConnections = 0;
+        const maxConnections = Math.max(...Object.values(connectionCounts));
+        const minSize = 20;
+        const maxSize = 60;
+       
+        // Add project nodes
+        projectsData.forEach(project => {
+            // Calculate size based on number of connections
+            const connections = connectionCounts[project.name];
+            const size = connections === minConnections 
+                ? minSize 
+                : minSize + ((connections / maxConnections) * (maxSize - minSize));
+                
+            nodes.push({
+                id: project.name,
+                label: project.name.length > 12 ? project.name.replace(/\s+/g, '\n') : project.name,
+                title: `Start: ${project.start}\nDeadline: ${project.deadline}\nConnections: ${connections}\nDescription: ${project.description}`,
+                data: project,
+                group: 'project',
+                size: size
+            });
+           
+            // Add dependency edges
+            project.dependencies.forEach(dep => {
+                edges.push({
+                    from: project.name,
+                    to: dep,
+                    arrows: 'to',
+                    title: 'Depends on',
+                    color: {color: '#7f8c8d', highlight: '#34495e'}
+                });
+            });
+            
+            // Add resource edges
+            project.resources.forEach(resource => {
+                edges.push({
+                    from: project.name,
+                    to: resource,
+                    arrows: 'to',
+                    title: 'Uses',
+                    color: {color: '#e84393', highlight: '#d63031'}
+                });
+            });
+        });
+        
+        // Add resource nodes
+        resourcesData.forEach(resource => {
+            // Calculate size based on number of connections
+            const connections = connectionCounts[resource];
+            const size = connections === minConnections 
+                ? minSize 
+                : minSize + ((connections / maxConnections) * (maxSize - minSize));
+                
+            // Determine resource type based on name
+            let shape = 'hexagon'; // default shape
+            let shapeProperties = {};
+            let group = 'resource';
+            let image = '';
+            
+            const resourceName = resource.toLowerCase();
+            
+            // Computer-related resources
+            if (resourceName.includes('computer') || 
+                resourceName.includes('server') || 
+                resourceName.includes('cluster') || 
+                resourceName.includes('gpu') || 
+                resourceName.includes('cpu') || 
+                resourceName.includes('machine') || 
+                resourceName.includes('hardware') ||
+                resourceName.includes('database') ||
+                resourceName.includes('cloud') ||
+                resourceName.includes('storage') ||
+                resourceName.includes('network') ||
+                resourceName.includes('internet') ||
+                resourceName.includes('router') ||
+                resourceName.includes('switch') ||
+                resourceName.includes('firewall') ||
+                resourceName.includes('vpn') ||
+                resourceName.includes('computing') ||
+                resourceName.includes('data') ||
+                resourceName.includes('analytics') ||
+                resourceName.includes('processing') ||
+                resourceName.includes('storage') ||
+                resourceName.includes('network')
+                ) {
+                shape = 'image';
+                group = 'tech_resource';
+                image = 'https://img.icons8.com/ios-filled/50/9b59b6/computer.png';
+            }
+            
+            // Human resources
+            else if (resourceName.includes('team') || 
+                    resourceName.includes('person') || 
+                    resourceName.includes('people') || 
+                    resourceName.includes('staff') || 
+                    resourceName.includes('employee') || 
+                    resourceName.includes('expert') || 
+                    resourceName.includes('scientist') || 
+                    resourceName.includes('engineer') ||
+                    resourceName.includes('developer') ||
+                    resourceName.includes('manager') ||
+                    resourceName.includes('consultant') ||
+                    resourceName.includes('analyst') ||
+                    resourceName.includes('researcher') ||
+                    resourceName.includes('designer') ||
+                    resourceName.includes('architect') ||
+                    resourceName.includes('specialist') ||
+                    resourceName.includes('consultant') ||
+                    resourceName.includes('group')) {
+                shape = 'image';
+                group = 'human_resource';
+                image = 'https://img.icons8.com/ios-filled/50/27ae60/user.png';
+            }
+            
+            // Building/facility resources
+            else if (resourceName.includes('office') || 
+                    resourceName.includes('building') || 
+                    resourceName.includes('facility') || 
+                    resourceName.includes('lab') || 
+                    resourceName.includes('room') || 
+                    resourceName.includes('space')) {
+                shape = 'image';
+                group = 'facility_resource';
+                image = 'https://img.icons8.com/ios-filled/50/f39c12/building.png';
+            }
+            
+            // Software resources
+            else if (resourceName.includes('software') || 
+                    resourceName.includes('app') || 
+                    resourceName.includes('application') || 
+                    resourceName.includes('system') || 
+                    resourceName.includes('platform') ||
+                    resourceName.includes('framework') ||
+                    resourceName.includes('tool') ||
+                    resourceName.includes('program')) {
+                shape = 'image';
+                group = 'software_resource';
+                image = 'https://img.icons8.com/ios-filled/50/1abc9c/source-code.png';
+            }
+            
+            // Money/financial resources
+            else if (resourceName.includes('budget') || 
+                    resourceName.includes('funding') || 
+                    resourceName.includes('money') || 
+                    resourceName.includes('finance') || 
+                    resourceName.includes('cost')) {
+                shape = 'image';
+                group = 'financial_resource';
+                image = 'https://img.icons8.com/ios-filled/50/f1c40f/us-dollar.png';
+            }
+            
+            // Time-related resources
+            else if (resourceName.includes('time') || 
+                    resourceName.includes('schedule') || 
+                    resourceName.includes('calendar') || 
+                    resourceName.includes('deadline')) {
+                shape = 'image';
+                group = 'time_resource';
+                image = 'https://img.icons8.com/ios-filled/50/7f8c8d/clock.png';
+            }
+            
+            const nodeOptions = {
+                id: resource,
+                label: resource.length > 12 ? resource.replace(/\s+/g, '\n') : resource,
+                title: `Resource: ${resource}\nUsed by: ${connections} project(s)`,
+                group: group,
+                size: size,
+                shape: shape
+            };
+            
+            // Add image if applicable
+            if (shape === 'image') {
+                nodeOptions.image = image;
+                nodeOptions.size = size + 5; // Make icon nodes slightly larger
+            }
+                
+            nodes.push(nodeOptions);
+        });
+
+        // Create network
+        const container = document.getElementById('network');
+        const data = {
+            nodes: new vis.DataSet(nodes),
+            edges: new vis.DataSet(edges)
+        };
+
+        // Set up canvas container for vis.js
+        // This ensures the network is rendered inside the #network element
+        // and our slide-in panel works correctly with it
+        const networkContainer = document.createElement('div');
+        networkContainer.style.width = '100%';
+        networkContainer.style.height = '100%';
+        networkContainer.style.position = 'absolute';
+        networkContainer.style.top = '0';
+        networkContainer.style.left = '0';
+        networkContainer.style.zIndex = '1';
+        container.insertBefore(networkContainer, container.firstChild);
+
+        const options = {
+            nodes: {
+                shape: 'circle',
+                borderWidth: 1,
+                borderWidthSelected: 2,
+                font: {
+                    color: '#333',
+                    size: 8,
+                    face: 'Montserrat, sans-serif',
+                    bold: false,
+                    multi: true,
+                    vadjust: 0,
+                    margin: 6
+                },
+                shadow: true,
+                widthConstraint: {
+                    maximum: 80
+                },
+                heightConstraint: {
+                    minimum: 30
+                }
+            },
+            groups: {
+                project: {
+                    color: {
+                        background: '#3498db',
+                        border: '#2980b9',
+                        highlight: {
+                            background: '#2980b9',
+                            border: '#1c638e'
+                        }
+                    }
+                },
+                resource: {
+                    color: {
+                        background: '#e74c3c',
+                        border: '#c0392b',
+                        highlight: {
+                            background: '#c0392b',
+                            border: '#a82315'
+                        }
+                    },
+                    shape: 'hexagon'
+                },
+                tech_resource: {
+                    color: {
+                        background: '#9b59b6',
+                        border: '#8e44ad',
+                        highlight: {
+                            background: '#8e44ad',
+                            border: '#6c3483'
+                        }
+                    }
+                },
+                human_resource: {
+                    color: {
+                        background: '#27ae60',
+                        border: '#2ecc71',
+                        highlight: {
+                            background: '#2ecc71',
+                            border: '#27ae60'
+                        }
+                    }
+                },
+                facility_resource: {
+                    color: {
+                        background: '#f39c12',
+                        border: '#e67e22',
+                        highlight: {
+                            background: '#e67e22',
+                            border: '#d35400'
+                        }
+                    }
+                },
+                software_resource: {
+                    color: {
+                        background: '#1abc9c',
+                        border: '#16a085',
+                        highlight: {
+                            background: '#16a085',
+                            border: '#0e6252'
+                        }
+                    }
+                },
+                financial_resource: {
+                    color: {
+                        background: '#f1c40f',
+                        border: '#f39c12',
+                        highlight: {
+                            background: '#f39c12',
+                            border: '#e67e22'
+                        }
+                    }
+                },
+                time_resource: {
+                    color: {
+                        background: '#7f8c8d',
+                        border: '#95a5a6',
+                        highlight: {
+                            background: '#95a5a6',
+                            border: '#7f8c8d'
+                        }
+                    }
+                }
+            },
+            edges: {
+                width: 1.5,
+                smooth: {
+                    type: 'continuous',
+                    roundness: 0.2
+                }
+            },
+            physics: {
+                enabled: true,
+                forceAtlas2Based: {
+                    gravitationalConstant: -50,
+                    centralGravity: 0.005,
+                    springLength: 200,
+                    springConstant: 0.05
+                },
+                solver: 'forceAtlas2Based',
+                stabilization: {
+                    iterations: 150
+                },
+                repulsion: {
+                    centralGravity: 0.01,
+                    springLength: 200,
+                    springConstant: 0.08,
+                    nodeDistance: 250,
+                    damping: 0.09
+                },
+                maxVelocity: 50,
+                minVelocity: 0.1
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 300,
+                navigationButtons: true,
+                keyboard: true
+            }
+        };
+
+        const network = new vis.Network(networkContainer, data, options);
+
+        // Show project details on node click
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                showNodeDetails(nodeId);
+            } else {
+                // Hide panel when clicking on empty space
+                document.getElementById('project-info').classList.remove('active');
+                
+                // Reset node sizes when clicking elsewhere
+                resetAllNodeSizes();
+            }
+        });
+        
+        // Function to show node details in the side panel
+        function showNodeDetails(nodeId) {
+            const node = data.nodes.get(nodeId);
+            if (!node) return;
+            
+            // Reset any previously selected node to its original size
+            resetAllNodeSizes();
+            
+            // Focus on the selected node with animation
+            network.focus(nodeId, {
+                scale: 1.2,
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+            
+            // Enlarge the selected node
+            const enlargedSize = node.size * 1.5; // 50% larger
+            const enlargedFont = { size: 10 }; // Larger font size
+            
+            data.nodes.update({
+                id: nodeId,
+                size: enlargedSize,
+                font: enlargedFont
+            });
+            
+            // Handle project node clicks
+            if (node.group === 'project') {
+                const projectData = node.data;
+                
+                document.getElementById('selected-project').textContent = projectData.name;
+                document.getElementById('description').textContent = projectData.description;
+                document.getElementById('start-date').textContent = projectData.start;
+                document.getElementById('deadline').textContent = projectData.deadline;
+                
+                // Create links for dependencies
+                const dependenciesElement = document.getElementById('dependencies');
+                if (projectData.dependencies.length > 0) {
+                    dependenciesElement.innerHTML = projectData.dependencies.map(dep => 
+                        `<a href="#" class="node-link" data-node-id="${dep}">${dep}</a>`
+                    ).join(' ');
+                } else {
+                    dependenciesElement.textContent = 'None';
+                }
+                
+                // Create links for resources
+                const resourcesElement = document.getElementById('resources');
+                if (projectData.resources.length > 0) {
+                    resourcesElement.innerHTML = projectData.resources.map(resource => 
+                        `<a href="#" class="node-link" data-node-id="${resource}">${resource}</a>`
+                    ).join(' ');
+                } else {
+                    resourcesElement.textContent = 'None';
+                }
+                
+                // Ensure all sections are visible for project nodes
+                document.getElementById('description').parentElement.style.display = 'block';
+                document.getElementById('start-date').parentElement.style.display = 'block';
+                document.getElementById('deadline').parentElement.style.display = 'block';
+                document.getElementById('dependencies').parentElement.style.display = 'block';
+                document.getElementById('resources').parentElement.style.display = 'block';
+                
+                // Update the resources section title
+                document.getElementById('resources').parentElement.querySelector('.info-label').textContent = 'Resources';
+            } 
+            // Handle resource node clicks - any resource type (generic or specific)
+            else if (node.group.includes('resource')) {
+                document.getElementById('selected-project').textContent = `Resource: ${nodeId}`;
+                document.getElementById('description').parentElement.style.display = 'none';
+                document.getElementById('start-date').parentElement.style.display = 'none';
+                document.getElementById('deadline').parentElement.style.display = 'none';
+                document.getElementById('dependencies').parentElement.style.display = 'none';
+                
+                // Find projects that use this resource
+                const projectsUsingResource = projectsData
+                    .filter(project => project.resources.includes(nodeId))
+                    .map(project => project.name);
+                
+                // Create links for projects using this resource
+                const resourcesElement = document.getElementById('resources');
+                if (projectsUsingResource.length > 0) {
+                    resourcesElement.innerHTML = projectsUsingResource.map(project => 
+                        `<a href="#" class="node-link" data-node-id="${project}">${project}</a>`
+                    ).join(' ');
+                } else {
+                    resourcesElement.textContent = 'None';
+                }
+                
+                // Update the resources section title and display
+                document.getElementById('resources').parentElement.querySelector('.info-label').textContent = 'Used by Projects';
+                document.getElementById('resources').parentElement.style.display = 'block';
+            }
+            
+            // Store the selected node ID for reference
+            network.selectedNodeId = nodeId;
+            
+            // Activate the slide-in panel
+            document.getElementById('project-info').classList.add('active');
+            
+            // Add event listeners to all node links
+            document.querySelectorAll('.node-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetNodeId = this.getAttribute('data-node-id');
+                    
+                    // Focus on the target node
+                    network.focus(targetNodeId, {
+                        scale: 1.2,
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                    
+                    // Select the target node after a brief delay to allow the animation to complete
+                    setTimeout(() => {
+                        showNodeDetails(targetNodeId);
+                    }, 600);
+                });
+            });
+        }
+        
+        // Function to reset all nodes to their original sizes
+        function resetAllNodeSizes() {
+            if (network.selectedNodeId) {
+                const selectedNode = data.nodes.get(network.selectedNodeId);
+                if (selectedNode) {
+                    // Get the original size based on connections
+                    const connections = connectionCounts[selectedNode.id];
+                    const originalSize = connections === minConnections 
+                        ? minSize 
+                        : minSize + ((connections / maxConnections) * (maxSize - minSize));
+                    
+                    // For image nodes (resources with icons), add the extra size
+                    const finalSize = selectedNode.shape === 'image' ? originalSize + 3 : originalSize;
+                    
+                    // Reset to original size and font
+                    data.nodes.update({
+                        id: selectedNode.id,
+                        size: finalSize,
+                        font: options.nodes.font
+                    });
+                }
+                
+                // Clear the selected node reference
+                network.selectedNodeId = null;
+            }
+        }
+
+        // Add close button functionality
+        document.getElementById('close-info').addEventListener('click', function() {
+            document.getElementById('project-info').classList.remove('active');
+            resetAllNodeSizes();
+        });
+
+        // Make sure clicking the network container doesn't close the panel when it's already open
+        document.getElementById('network').addEventListener('click', function(e) {
+            // If the click is on the info panel, don't close it
+            if (e.target.closest('#project-info')) {
+                e.stopPropagation();
+            }
+        });
+        
+        // Handle layout controls
+        document.getElementById('nodeDistance').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            network.physics.options.repulsion.nodeDistance = value;
+            network.physics.options.forceAtlas2Based.springLength = value;
+            network.physics.options.repulsion.springLength = value;
+            network.startSimulation();
+        });
+        
+        document.getElementById('springLength').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            network.physics.options.forceAtlas2Based.springLength = value;
+            network.physics.options.repulsion.springLength = value;
+            network.startSimulation();
+        });
+        
+        document.getElementById('gravitationalConstant').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            network.physics.options.forceAtlas2Based.gravitationalConstant = -value;
+            network.startSimulation();
+        });
+        
+        document.getElementById('stabilizeButton').addEventListener('click', function() {
+            network.stabilize(100);
+        });
+    </script>
+</body>
+</html>

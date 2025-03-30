@@ -10,9 +10,9 @@ app = Flask(__name__, template_folder=template_dir)
 
 
 # Get Neo4j credentials from environment variables with fallback to current values
-uri = os.environ.get("NEO4J_URI", "bolt://3.87.3.56:7687")
+uri = os.environ.get("NEO4J_URI", "bolt://98.80.210.95:7687")
 user = os.environ.get("NEO4J_USER", "neo4j")
-password = os.environ.get("NEO4J_PASSWORD", "verse-manifest-inspection")
+password = os.environ.get("NEO4J_PASSWORD", "dawns-latitude-menu")
 driver = GraphDatabase.driver(uri, auth=(user, password))
 
 
